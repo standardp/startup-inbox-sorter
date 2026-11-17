@@ -18,9 +18,9 @@ _load_dotenv()
 
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "").replace(" ", "")
-# Only emails received on/after this date (YYYY-MM-DD) are pulled.
-GMAIL_START_DATE = os.getenv("GMAIL_START_DATE", "2026-11-17")
-GMAIL_QUERY = os.getenv("GMAIL_QUERY", "-from:me -filename:ics -category:promotions -category:social")
+# Empty = no date cutoff: the whole unread backlog is pulled.
+GMAIL_START_DATE = os.getenv("GMAIL_START_DATE", "")
+GMAIL_QUERY = os.getenv("GMAIL_QUERY", "is:unread")
 GMAIL_MAX_EMAILS = int(os.getenv("GMAIL_MAX_EMAILS", "300"))
 
 LLM_PROVIDERS = {
