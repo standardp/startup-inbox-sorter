@@ -51,14 +51,12 @@ def _body(msg: email.message.Message) -> str:
 def _parse(raw: bytes, gm_id: str) -> dict | None:
     msg = email.message_from_bytes(raw)
     name, addr = parseaddr(_decode(msg.get("From")))
-    if addr.lower() == GMAIL_ADDRESS.lower():
-        return None
     body = _body(msg)
     try:
         received_dt = parsedate_to_datetime(msg.get("Date")).astimezone()
     except Exception:  # noqa: BLE001
         received_dt = None
-    if received_dt and received_dt.date() < date.fromisoformat(GMAIL_START_DATE):
+    if GMAIL_START_DATE and received_dt and received_dt.date() < date.fromisoformat(GMAIL_START_DATE):
         return None
     received = received_dt.isoformat() if received_dt else ""
     return {
@@ -73,20 +71,25 @@ def _parse(raw: bytes, gm_id: str) -> dict | None:
     }
 
 
-def fetch(skip_ids: set[str], since: date) -> list[dict]:
+def fetch(skip_ids: set[str], since: date | None) -> list[dict]:
     imap = imaplib.IMAP4_SSL("imap.gmail.com")
     imap.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
     try:
         imap.select('"[Gmail]/All Mail"', readonly=True)
-        if since > date.today():
+        if since and since > date.today():
             return []
-        # Gmail's after: is day-granular; _parse() drops anything before GMAIL_START_DATE.
-        query = f"after:{since - timedelta(days=1):%Y/%m/%d} {GMAIL_QUERY}".strip()
+        parts = []
+        if since:
+            # Gmail's after: is day-granular; _parse() drops anything before GMAIL_START_DATE.
+            parts.append(f"after:{since - timedelta(days=1):%Y/%m/%d}")
+        if GMAIL_QUERY:
+            parts.append(GMAIL_QUERY)
+        query = " ".join(parts)
         _, data = imap.uid("SEARCH", "X-GM-RAW", f'"{query}"')
-        uids = data[0].split()[-GMAIL_MAX_EMAILS:]
+        uids = data[0].split()
         if not uids:
             return []
-        _, id_data = imap.uid("FETCH", b",".join(uids), "(X-GM-MSGID)")
+        _, id_data = imap.uid("FETCH", b",".join(uids[-5000:]), "(X-GM-MSGID)")
         gm_ids = {}
         for line in id_data:
             raw_line = line[0] if isinstance(line, tuple) else line
@@ -95,7 +98,9 @@ def fetch(skip_ids: set[str], since: date) -> list[dict]:
                 msgid = match.group(1) or match.group(4)
                 uid = match.group(2) or match.group(3)
                 gm_ids[uid] = f"gmail-{msgid.decode()}"
-        todo = [u for u in reversed(uids) if gm_ids.get(u, f"gmail-uid-{u.decode()}") not in skip_ids]
+        # Slice AFTER dedup: each run classifies up to GMAIL_MAX_EMAILS *new* emails,
+        # so a large backlog drains in daily batches without re-classifying.
+        todo = [u for u in reversed(uids) if gm_ids.get(u, f"gmail-uid-{u.decode()}") not in skip_ids][:GMAIL_MAX_EMAILS]
         results = []
         for i in range(0, len(todo), 50):
             chunk = todo[i : i + 50]
