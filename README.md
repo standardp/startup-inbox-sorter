@@ -6,7 +6,7 @@ A dashboard that sorts the startup emails in your Gmail by industry (Fintech, AI
 - **GitHub Pages** serves the dashboard in `docs/`.
 - **Privacy:** `docs/data.json` is encrypted with AES-256-GCM (PBKDF2-SHA256 key from your passphrase). The dashboard decrypts it in your browser. Gmail and Lyber credentials live only in GitHub Actions secrets. The code is public; your emails and keys are not.
 
-Only emails received on or after `GMAIL_START_DATE` (default `2026-11-17`) are sorted. Emails you sent, calendar invites, and the Promotions/Social tabs are skipped.
+By default every unread email is sorted, including the existing unread backlog. Up to `GMAIL_MAX_EMAILS` (300) new emails are classified per run; a larger backlog drains in daily batches without re-classifying. Set `GMAIL_START_DATE` (YYYY-MM-DD) to skip older mail or `GMAIL_QUERY` to change the Gmail search (default `is:unread`).
 
 ## Set up your own copy
 
@@ -18,7 +18,7 @@ Only emails received on or after `GMAIL_START_DATE` (default `2026-11-17`) are s
    - `LYBER_API_KEY` (optional; without it, keyword matching is used)
    - `DASHBOARD_PASSPHRASE`: the passphrase you'll type to open the dashboard
 
-   Optionally add the variable `GMAIL_START_DATE` (YYYY-MM-DD).
+   Optionally add the variables `GMAIL_START_DATE` (YYYY-MM-DD), `GMAIL_QUERY` or `GMAIL_MAX_EMAILS`.
 4. Delete `docs/data.json` in your copy. It's encrypted with someone else's passphrase, so the sync would fail.
 5. **Settings → Pages → Source: GitHub Actions.**
 6. **Actions → "Sort emails and publish dashboard" → Run workflow** to run it once now. After that it runs daily.
