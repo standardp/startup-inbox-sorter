@@ -38,8 +38,8 @@ def main() -> None:
     if sample:
         new = sample_emails()
     else:
-        since = date.fromisoformat(GMAIL_START_DATE)
-        if data.get("last_sync"):
+        since = date.fromisoformat(GMAIL_START_DATE) if GMAIL_START_DATE else None
+        if since and data.get("last_sync"):
             since = max(since, date.fromisoformat(data["last_sync"][:10]) - timedelta(days=2))
         new = gmail_client.fetch(set(emails), since)
 
